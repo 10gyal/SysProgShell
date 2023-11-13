@@ -100,7 +100,7 @@ int main(int argc, char **argv)
   char cmdline[MAXLINE];
 
   // redirect stderr to stdout so that the driver will get all output on the pipe connected 
-  // to stdout.
+  // to stdout. eg. dup2(save_stdin, 0) <-- restoring stdin to fd 0
   dup2(STDOUT_FILENO, STDERR_FILENO);
 
   // set Standard I/O's buffering mode for stdout and stderr to line buffering
@@ -198,12 +198,28 @@ void eval(char *cmdline)
 
   //
   // TODO
-  //
-
-
-
-
-
+  // for trace 2
+  pid_t pid = fork();
+  if (pid == -1) {
+    // fork failed
+    perror("fork failed");
+    exit(EXIT_FAILURE);
+  } else if (pid > 0) {
+    // parent process
+    int status;
+    // wait for child process to finish
+    waitpid(pid, &status, 0);
+    if (status == -1) {
+      perror("waitpid failed");
+    }
+  } else {
+    // child process
+    execv(argv[0][0], argv[0]);
+    perror("execv failed");
+    exit(EXIT_FAILURE);
+  }
+  
+  
   int jid = -1;
   if (mode == jsForeground) waitfg(jid);
   else printjob(jid);
