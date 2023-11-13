@@ -203,6 +203,7 @@ void eval(char *cmdline)
 
 
 
+
   int jid = -1;
   if (mode == jsForeground) waitfg(jid);
   else printjob(jid);
@@ -221,6 +222,30 @@ int builtin_cmd(char *argv[])
   //
   // TODO
   //
+  // quit
+  if (!strcmp(argv[0], "quit")){
+    exit(0);
+  } 
+  // jobs
+  else if (!strcmp(argv[0], "jobs")){
+    listjobs();
+  }
+  // bg
+  else if (!strcmp(argv[0], "bg")){
+    do_bgfg(argv);
+  }
+  // fg
+  else if (!strcmp(argv[0], "fg")){
+    do_bgfg(argv);
+  }
+  // &
+  else if (!strcmp(argv[0], "&")){
+    return 1;
+  }
+  // not a builtin command
+  else {
+    return 0;
+  }
 
   return 1;
 }
