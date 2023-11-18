@@ -198,71 +198,64 @@ void eval(char *cmdline)
 
   //
   // TODO
-  if (mode == jsBackground) printf("bg job\n");
+  // if (mode == jsBackground) printf("bg job\n");
 
-  pid_t pid;
-  sigset_t mask;
+  pid_t pid, wpid;
+  sigset_t mask, oldmask;
   int status;
 
-  int nproc = 0;
-  pid_t pgid = getpid();
-  printf("init pgid: %d\n", pgid);
+  // int nproc = 0;
+  pid_t pgid;
+  // printf("init pgid: %d\n", pgid);
 
-  sigchld_handler(SIGCHLD);
+  // sigchld_handler(SIGCHLD);
   sigemptyset(&mask);
   sigaddset(&mask, SIGCHLD);
-  sigprocmask(SIG_BLOCK, &mask, NULL);
+  sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
   pid = fork();
-  setpgid(0, pgid);
-  if(pid == 0){
-    printf("child process\n");
-    // child process
-    sigprocmask(SIG_UNBLOCK, &mask, NULL);
-    pid_t chpid;
-    chpid = getpid();
-    if (pgid == 0) pgid = chpid;
-    setpgid(chpid, pgid);
-    printf("child pgid %d pid %d\n", getpgid(chpid), chpid);
-    nproc++;
-    execv(argv[0][0], argv[0]);
-  }
-  else if (pid == -1){
+  // setpgid(0, pgid);
+  
+  if(pid < 0){
     unix_error("fork error");
   }
+  else if (pid == 0){
+    setpgid(0, 0);
+    // printf("Child process\n");
+    sigprocmask(SIG_SETMASK, &oldmask, NULL);
+    execv(argv[0][0], argv[0]);
+  }
   else {
-    printf("parent process\n");
-    // parent process
-    nproc++;
+    // printf("Parent process\n");
     if (mode == jsForeground){
-      if(waitpid(0, &status, 0)>0){
-      if (WIFEXITED(status)){
-        // if (pgid == 0) pgid = getpid();
-        printf("pid %d getpid() %d\n", pid, getpid());
-        // printf(strerror(errno));
-      }
-      else {
-        printf("child %d terminated abnormally\n", pid);
-      }
+      // printf("fg\n");
+      tcsetpgrp(STDIN_FILENO, pid);
+
+      sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+      waitpid(pid, &status, WUNTRACED);
+      tcsetpgrp(STDIN_FILENO, getpgrp());
     }
-    if (errno != ECHILD){
-      unix_error("waitpid error");
+    else {
+      setpgid(pid, pid);
+      // printf("bg job with pgid %d and pid %d\n", getpgid(pid), pid);
+      sigprocmask(SIG_SETMASK, &oldmask, NULL);
+      pgid = getpgid(0);
+      int jid = addjob(pgid, &pid, ncmd, mode, cmdline);
+      // printf("jid %d\n", jid);
+      sigprocmask(SIG_UNBLOCK, &mask, NULL);
+      // int jid = -1;
+      if (mode == jsForeground) {
+        // printf("end fg\n");
+        waitfg(jid);
+
+      }
+      else printjob(jid);
     }
-  }    
-}
+  }
+  
   // printf("nproc %d\n", nproc);
   
-
-  int jid = addjob(pgid, &pid, ncmd, mode, cmdline);
-  printf("jid %d", jid);
-  sigprocmask(SIG_UNBLOCK, &mask, NULL);
-  // int jid = -1;
-  if (mode == jsForeground) {
-    printf("fg\n");
-    waitfg(jid);
-
-  }
-  else printjob(jid);
 }
 
 
