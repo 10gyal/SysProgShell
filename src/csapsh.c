@@ -198,30 +198,70 @@ void eval(char *cmdline)
 
   //
   // TODO
-  // for trace 2
-  pid_t pid = fork();
-  if (pid == -1) {
-    // fork failed
-    perror("fork failed");
-    exit(EXIT_FAILURE);
-  } else if (pid > 0) {
-    // parent process
-    int status;
-    // wait for child process to finish
-    waitpid(pid, &status, 0);
-    if (status == -1) {
-      perror("waitpid failed");
-    }
-  } else {
+  if (mode == jsBackground) printf("bg job\n");
+
+  pid_t pid;
+  sigset_t mask;
+  int status;
+
+  int nproc = 0;
+  pid_t pgid = getpid();
+  printf("init pgid: %d\n", pgid);
+
+  sigchld_handler(SIGCHLD);
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &mask, NULL);
+
+  pid = fork();
+  setpgid(0, pgid);
+  if(pid == 0){
+    printf("child process\n");
     // child process
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    pid_t chpid;
+    chpid = getpid();
+    if (pgid == 0) pgid = chpid;
+    setpgid(chpid, pgid);
+    printf("child pgid %d pid %d\n", getpgid(chpid), chpid);
+    nproc++;
     execv(argv[0][0], argv[0]);
-    perror("execv failed");
-    exit(EXIT_FAILURE);
   }
+  else if (pid == -1){
+    unix_error("fork error");
+  }
+  else {
+    printf("parent process\n");
+    // parent process
+    nproc++;
+    if (mode == jsForeground){
+      if(waitpid(0, &status, 0)>0){
+      if (WIFEXITED(status)){
+        // if (pgid == 0) pgid = getpid();
+        printf("pid %d getpid() %d\n", pid, getpid());
+        // printf(strerror(errno));
+      }
+      else {
+        printf("child %d terminated abnormally\n", pid);
+      }
+    }
+    if (errno != ECHILD){
+      unix_error("waitpid error");
+    }
+  }    
+}
+  // printf("nproc %d\n", nproc);
   
-  
-  int jid = -1;
-  if (mode == jsForeground) waitfg(jid);
+
+  int jid = addjob(pgid, &pid, ncmd, mode, cmdline);
+  printf("jid %d", jid);
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+  // int jid = -1;
+  if (mode == jsForeground) {
+    printf("fg\n");
+    waitfg(jid);
+
+  }
   else printjob(jid);
 }
 
@@ -296,6 +336,9 @@ void waitfg(int jid)
   //
   // TODO
   //
+  // while(1){
+    
+  // }
 }
 
 
@@ -313,6 +356,13 @@ void sigchld_handler(int sig)
   //
   // TODO
   //
+  pid_t pid;
+  while ((pid = waitpid(-1, NULL, 0))>0){
+    deletejob(pid);
+  }
+  if (errno != ECHILD){
+    unix_error("waitpid error");
+  }
 }
 
 /// @brief SIGINT handler. Sent to the shell whenever the user types Ctrl-c at the keyboard.
