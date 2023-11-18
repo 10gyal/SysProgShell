@@ -199,8 +199,9 @@ void eval(char *cmdline)
   //
   // TODO
   // if (mode == jsBackground) printf("bg job\n");
+  // sigchld_handler(SIGCHLD);
 
-  pid_t pid, wpid;
+  pid_t pid;
   sigset_t mask, oldmask;
   int status;
 
@@ -208,7 +209,6 @@ void eval(char *cmdline)
   pid_t pgid;
   // printf("init pgid: %d\n", pgid);
 
-  // sigchld_handler(SIGCHLD);
   sigemptyset(&mask);
   sigaddset(&mask, SIGCHLD);
   sigprocmask(SIG_BLOCK, &mask, &oldmask);
@@ -232,8 +232,9 @@ void eval(char *cmdline)
       tcsetpgrp(STDIN_FILENO, pid);
 
       sigprocmask(SIG_SETMASK, &oldmask, NULL);
-
+      // printf("Here fg");
       waitpid(pid, &status, WUNTRACED);
+
       tcsetpgrp(STDIN_FILENO, getpgrp());
     }
     else {
@@ -241,9 +242,8 @@ void eval(char *cmdline)
       // printf("bg job with pgid %d and pid %d\n", getpgid(pid), pid);
       sigprocmask(SIG_SETMASK, &oldmask, NULL);
       pgid = getpgid(0);
-      int jid = addjob(pgid, &pid, ncmd, mode, cmdline);
+      int jid = addjob(pgid, &pid, ncmd, jsBackground, cmdline);
       // printf("jid %d\n", jid);
-      sigprocmask(SIG_UNBLOCK, &mask, NULL);
       // int jid = -1;
       if (mode == jsForeground) {
         // printf("end fg\n");
@@ -253,7 +253,7 @@ void eval(char *cmdline)
       else printjob(jid);
     }
   }
-  
+
   // printf("nproc %d\n", nproc);
   
 }
@@ -265,9 +265,10 @@ void eval(char *cmdline)
 /// @retval 0 otherwise
 int builtin_cmd(char *argv[])
 {
+  // printf("builincmd %s\n", argv[0]);
   VERBOSE("builtin_cmd(%s)", argv[0]);
   if      (strcmp(argv[0], "quit") == 0) exit(EXIT_SUCCESS);
-  else    return 0;
+  // else    return 0;
   //
   // TODO
   //
@@ -349,13 +350,14 @@ void sigchld_handler(int sig)
   //
   // TODO
   //
-  pid_t pid;
-  while ((pid = waitpid(-1, NULL, 0))>0){
-    deletejob(pid);
-  }
-  if (errno != ECHILD){
-    unix_error("waitpid error");
-  }
+  // int status;
+  // pid_t pid;
+  // while ((pid = waitpid(-1, &status, WNOHANG))>0){
+  //   deletejob(pid);
+  // }
+  // if (errno != ECHILD){
+  //   unix_error("waitpid error");
+  // }
 }
 
 /// @brief SIGINT handler. Sent to the shell whenever the user types Ctrl-c at the keyboard.
