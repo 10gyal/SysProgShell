@@ -184,7 +184,8 @@ void eval(char *cmdline)
   assert(ncmd > 0);
 
   // dump parsed command line
-  if (verbose) dump_cmdstruct(argv, infile, outfile, mode);
+  // if (verbose) 
+  // dump_cmdstruct(argv, infile, outfile, mode);
 
   // if the command is a single built-in command (no pipes or redirection), do not fork. Instead,
   // execute the command directly in this process. Note that this is not just to be more efficient -
@@ -199,7 +200,6 @@ void eval(char *cmdline)
   //
   // TODO
   // if (mode == jsBackground) printf("bg job\n");
-  // sigchld_handler(SIGCHLD);
 
   pid_t pid;
   sigset_t mask, oldmask;
@@ -212,6 +212,9 @@ void eval(char *cmdline)
   sigemptyset(&mask);
   sigaddset(&mask, SIGCHLD);
   sigprocmask(SIG_BLOCK, &mask, &oldmask);
+
+  Signal(SIGINT, SIG_IGN);
+  Signal(SIGTSTP, SIG_IGN);
 
   pid = fork();
   // setpgid(0, pgid);
@@ -226,6 +229,10 @@ void eval(char *cmdline)
     execv(argv[0][0], argv[0]);
   }
   else {
+    pgid = getpgid(0);
+    int jid = addjob(pgid, &pid, ncmd, jsBackground, cmdline);
+      // printf("jid %d\n", jid);
+      // int jid = -1;
     // printf("Parent process\n");
     if (mode == jsForeground){
       // printf("fg\n");
@@ -241,10 +248,7 @@ void eval(char *cmdline)
       setpgid(pid, pid);
       // printf("bg job with pgid %d and pid %d\n", getpgid(pid), pid);
       sigprocmask(SIG_SETMASK, &oldmask, NULL);
-      pgid = getpgid(0);
-      int jid = addjob(pgid, &pid, ncmd, jsBackground, cmdline);
-      // printf("jid %d\n", jid);
-      // int jid = -1;
+      
       if (mode == jsForeground) {
         // printf("end fg\n");
         waitfg(jid);
@@ -350,14 +354,20 @@ void sigchld_handler(int sig)
   //
   // TODO
   //
-  // int status;
-  // pid_t pid;
-  // while ((pid = waitpid(-1, &status, WNOHANG))>0){
-  //   deletejob(pid);
-  // }
-  // if (errno != ECHILD){
-  //   unix_error("waitpid error");
-  // }
+  int status;
+  pid_t pid;
+
+  while((pid = waitpid(-1, &status, WNOHANG))>0){
+    if (WIFEXITED(status)){
+      printf("child %d exited with status %d\n", pid, WEXITSTATUS(status));
+    }
+    else if(WIFSIGNALED(status)){
+      printf("child %d terminated by signal %d\n", pid, WTERMSIG(status));
+    }
+    else if(WIFSTOPPED(status)){
+      printf("child %d stopped by signal %d\n", pid, WSTOPSIG(status));
+    }
+  }
 }
 
 /// @brief SIGINT handler. Sent to the shell whenever the user types Ctrl-c at the keyboard.
@@ -370,6 +380,13 @@ void sigint_handler(int sig)
   //
   // TODO
   //
+  pid_t fg_pgid;
+  fg_pgid = getjob_foreground()->pgid;
+  if(fg_pgid != 0){
+    kill(-fg_pgid, SIGINT);
+  }
+  
+
 }
 
 /// @brief SIGTSTP handler. Sent to the shell whenever the user types Ctrl-z at the keyboard.
@@ -382,6 +399,16 @@ void sigtstp_handler(int sig)
   //
   // TODO
   //
+  printf("sigstp\n");
+  Job *fg_j;
+  fg_j = getjob_foreground();
+  if(fg_j->pgid != 0){
+    kill(-fg_j->pgid, SIGTSTP);
+    fg_j->state = jsStopped;
+    addjob(fg_j->pgid, fg_j->pid, fg_j->nproc_tot, jsStopped, fg_j->cmdline);
+
+    fg_j = NULL;
+  }
 }
 
 
