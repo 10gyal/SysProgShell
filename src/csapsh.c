@@ -253,7 +253,7 @@ int builtin_cmd(char *argv[])
   else if (strcmp(argv[0], "&") == 0){
     return 1;
   }
-  else if (strcmp(argv[0], "bg") == 0 || strcmp(argv[0], "fg") == 0){
+  else if ((strcmp(argv[0], "bg") == 0) || (strcmp(argv[0], "fg") == 0)){
     do_bgfg(argv);
     return 1;
   }
@@ -277,6 +277,58 @@ void do_bgfg(char *argv[])
   //
   // TODO
   //
+  pid_t jid;
+  pid_t pid;
+  Job *job;
+  char *symb;
+  symb = argv[1];
+
+  // case 1: jid %
+  if(symb[0] == '%'){
+    jid = atoi(&symb[1]);
+    job = getjob_jid(jid);
+    
+    if(job == NULL){
+      printf("[%%%d]No such job\n", jid);
+      return;
+    }
+    else {
+      pid = *(job->pid);
+    }
+  }
+  // case 2: pid
+  else if (symb[0] == '@'){
+    printf("s%s\n", symb);
+    pid = atoi(symb);
+
+    job = getjob_pid(pid);
+    if (job == NULL){
+      printf("[@%d]No such process\n", pid);
+      return;
+    }
+
+  }
+  else {
+    printf("arg error\n");
+    return;
+  }
+
+  // kill
+  kill(-pid, SIGCONT);
+
+  // if fg job
+  if(strcmp("fg", argv[0]) == 0){
+    job->state = jsForeground;
+    waitfg(job->jid);
+  }
+  else {
+    // bg job
+    printjob(job->jid);
+    job->state = jsBackground;
+  }
+
+  return;
+
 }
 
 /// @brief Block until job jid is no longer in the foreground
@@ -353,7 +405,6 @@ void sigint_handler(int sig)
   if(pid != 0){
     kill(-(pid), sig);
   }
-  return;
 }
 
 /// @brief SIGTSTP handler. Sent to the shell whenever the user types Ctrl-z at the keyboard.
@@ -366,11 +417,10 @@ void sigtstp_handler(int sig)
   //
   // TODO
   //
-  pid_t *pid = getjob_foreground()->pid;
+  pid_t pid = *(getjob_foreground()->pid);
   if(pid != 0){
-    kill(-(*pid), sig);
+    kill(-(pid), sig);
   }
-  return;
 }
 
 
