@@ -1,41 +1,6 @@
 # Lab 4: Shell Lab
 
-The purpose of this lab is to become more familiar with the concepts of process control, signaling, pipes, and redirection. 
-To achieve that goal, we implement our own shell with simple job control.
-
-You will learn
-   * how to run other processes through `fork()` and `exec()`
-   * how to redirect input/output
-   * how to create a pipe between two child processes
-   * how to send a group of processes to the background/foreground
-   * that proper signal handling is quite tricky
-
-[[_TOC_]]
-
-
-## Important Dates
-
-| Date | Description |
-|:---  |:--- |
-| Monday, November  6, 19:00 | Hand-out |
-| Monday, November 13, 19:00 | Lab session 1 |
-| Sunday, November 19, 23:59 | Submission deadline |
-
-
-## Logistics
-
-### Hand-out
-Start by forking the lab into your namespace and making sure the lab visibility is set to private. Read the instructions here carefully. Then clone the lab to your local computer and get to work.
-
-
-### Submission
-
-Commit and push your work frequently to avoid data loss. Once you are happy with your solution and want to submit it for grading, create a tag called "Submission". The timestamp of the "Submission" tag (which is attached you your last commit and thus has the identical same timestamp) counts as your submission time.
-
-To create a tag, go to your I/O lab repository on https://teaching.csap.snu.ac.kr/ and navigate to Repository -> Tags. Enter "Submission" as the Tag name then hit "Create tag". You can leave the other fields empty.  
-
-If you later discover an error and want to update your submission, you can delete the "Submission" tag, fix your solution, and create a new "Submission" tag. If that happens _after_ the submission deadline, you also need to email the TAs so that they are aware of the update to your submission.
-
+Lab Work from SysProg Fall 2023
 
 ## The CSAP Shell
 
